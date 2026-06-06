@@ -62,9 +62,17 @@
             <div id="grid"></div>
         </div>
         
+        <button id="btn-show-minimap" class="btn-show-minimap" onclick="toggleMinimap(true)" title="ミニマップを表示">🗺️</button>
+
         <div class="minimap-container" id="minimap-container">
-            <div id="minimap-content"></div>
-            <div id="minimap-viewport"></div>
+            <div class="minimap-header" id="minimap-header">
+                <span class="minimap-drag-handle">⠿</span>
+                <button class="btn-minimize-minimap" onclick="toggleMinimap(false)" title="最小化">−</button>
+            </div>
+            <div class="minimap-body">
+                <div id="minimap-content"></div>
+                <div id="minimap-viewport"></div>
+            </div>
         </div>
 
         <div class="controls">

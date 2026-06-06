@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
+    <title>店内マップビューア</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="mobile-header">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <h2 style="margin: 0; font-size: 16px;">店内マップ</h2>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">メニュー</h2>
+            <button class="close-btn" onclick="toggleSidebar()">×</button>
+        </div>
+        
+        <div class="sidebar-content">
+            <div class="lang-switch">
+                <button id="btn-lang-ja" class="active" onclick="switchLang('ja')">日本語</button>
+                <button id="btn-lang-en" onclick="switchLang('en')">English</button>
+            </div>
+
+            <div class="search-section">
+                <input type="text" id="search-input" placeholder="作品名・施設名で検索...">
+                <button class="btn-search" id="btn-search-el" onclick="searchAsset()">検索</button>
+            </div>
+            
+            <div class="index-section">
+                <div class="section-title" id="index-title">五十音で探す</div>
+                <div id="index-buttons" class="index-grid"></div>
+            </div>
+
+            <div class="result-section">
+                <div class="section-title">
+                    <span id="results-title">該当作品</span> 
+                    <span id="results-count" style="font-size: 12px; font-weight: normal; margin-left: 10px;"></span>
+                </div>
+                <ul id="search-results" class="result-list">
+                    <li style="padding: 10px; color: #7f8c8d; font-size: 12px;">ボタンを押すか検索してください</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content" id="map-container">
+        
+        <div class="route-panel" id="route-panel">
+            <div id="route-text">
+                <span style="color:#e74c3c">📍現在地: 未設定</span> <span style="color:#ccc; margin:0 5px;">|</span> <span style="color:#2c3e50">🏁目的地: 未設定</span><br>
+                <small style="font-weight:normal; color:#7f8c8d;">マップの空きマスと棚をタップしてください</small>
+            </div>
+            <button class="btn-clear-route" onclick="clearRoute()">クリア</button>
+        </div>
+
+        <div id="map-wrapper">
+            <div id="grid"></div>
+        </div>
+        
+        <div class="minimap-container" id="minimap-container">
+            <div id="minimap-content"></div>
+            <div id="minimap-viewport"></div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="zoomIn()" title="拡大">＋</button>
+            <button class="control-btn" onclick="zoomOut()" title="縮小">－</button>
+            <button class="control-btn" onclick="fitToScreen()" title="全体表示" style="font-size: 12px;">全体</button>
+        </div>
+    </div>
+</div>
+
+<script src="data.js"></script>
+<script src="map.js"></script>
+</body>
+</html>

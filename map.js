@@ -130,10 +130,16 @@ function highlightShelves(shelfIds, textQuery) {
 const COLS = 60, ROWS = 82, CELL_SIZE = 60, BASE_SCALE = 0.2;
 let cellsArray = [], scale = 1, translateX = 0, translateY = 0, isDragging = false, startX, startY;
 
+// ★ マップの有効範囲（施設が配置されている最も外側のライン）を記録する変数
+let mapBounds = { minR: ROWS, maxR: 1, minC: COLS, maxC: 1 };
+
 function renderMap() {
     const grid = document.getElementById('grid');
     const minimapContent = document.getElementById('minimap-content');
     grid.innerHTML = ''; minimapContent.innerHTML = ''; cellsArray = [];
+    
+    // バウンズの初期化
+    mapBounds = { minR: ROWS, maxR: 1, minC: COLS, maxC: 1 };
     
     for (let r = 1; r <= ROWS; r++) {
         cellsArray[r] = [];
@@ -170,6 +176,12 @@ function applyToGrid(x1, y1, x2, y2, id, asset, minimapContent) {
     const mainCell = cellsArray[startY] ? cellsArray[startY][startX] : null;
     if (!mainCell || mainCell.style.display === 'none') return; 
 
+    // ★ マップの有効範囲（端の棚の座標）を更新
+    if (startY < mapBounds.minR) mapBounds.minR = startY;
+    if (endY > mapBounds.maxR) mapBounds.maxR = endY;
+    if (startX < mapBounds.minC) mapBounds.minC = startX;
+    if (endX > mapBounds.maxC) mapBounds.maxC = endX;
+
     mainCell.style.gridColumn = `span ${endX - startX + 1}`;
     mainCell.style.gridRow = `span ${endY - startY + 1}`;
     mainCell.className = `cell ${asset.className}`;
@@ -184,7 +196,7 @@ function applyToGrid(x1, y1, x2, y2, id, asset, minimapContent) {
             if (c === startX && r === startY) continue; 
             if (cellsArray[r] && cellsArray[r][c]) {
                 cellsArray[r][c].style.display = 'none';
-                cellsArray[r][c].dataset.hiddenAssetId = id; // ナビ用の不可視情報
+                cellsArray[r][c].dataset.hiddenAssetId = id; 
             }
         }
     }
@@ -200,7 +212,7 @@ function applyToGrid(x1, y1, x2, y2, id, asset, minimapContent) {
 }
 
 // ======= ルートナビゲーション機能 =======
-let currentPin = null; // {r, c}
+let currentPin = null; 
 let goalAssetId = null;
 
 function clearRoute() {
@@ -222,12 +234,15 @@ function updateRouteText() {
     if(currentPin || goalAssetId) document.getElementById('route-panel').classList.add('active');
 }
 
+// ★ 歩行可能マスの判定に、マップの有効範囲（端の棚のライン）の制限を追加
 function getWalkableNeighbors(r, c) {
     const neighbors = [];
     const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     for (let [dr, dc] of dirs) {
         const nr = r + dr, nc = c + dc;
-        if (nr >= 1 && nr <= ROWS && nc >= 1 && nc <= COLS) {
+        
+        // 施設が置かれている最も外側のエリア内でのみ移動可能
+        if (nr >= mapBounds.minR && nr <= mapBounds.maxR && nc >= mapBounds.minC && nc <= mapBounds.maxC) {
             const neighborCell = cellsArray[nr][nc];
             // 障害物（配置物）でないマスなら通れる
             if (neighborCell.style.display !== 'none' && !neighborCell.dataset.assetId) {
@@ -371,12 +386,20 @@ function setupEventListeners() {
         const cell = e.target.closest('.cell');
         if (!cell) return;
 
+        const r = parseInt(cell.dataset.y);
+        const c = parseInt(cell.dataset.x);
+
+        // ★ タップした場所が店舗の範囲外（端の棚より外側）の場合は何も反応しない
+        if (r < mapBounds.minR || r > mapBounds.maxR || c < mapBounds.minC || c > mapBounds.maxC) {
+            return;
+        }
+
         if (cell.dataset.assetId) {
             // 施設をタップ -> 目的地
             goalAssetId = cell.dataset.assetId;
         } else {
             // 何もない通路をタップ -> 現在地
-            currentPin = { r: parseInt(cell.dataset.y), c: parseInt(cell.dataset.x) };
+            currentPin = { r: r, c: c };
         }
         updateRouteText();
         calculateAndDrawRoute();
@@ -410,7 +433,7 @@ function setupEventListeners() {
     window.addEventListener('mousemove', (e) => { if(isMinimapDragging) moveMapViaMinimap(e); });
     window.addEventListener('mouseup', () => { isMinimapDragging = false; });
 
-    // タッチ操作（省略せずに維持）
+    // タッチ操作
     let initialDist = 0, initScale = 1, isPinching = false, lastX = 0, lastY = 0;
     container.addEventListener('touchstart', (e) => {
         if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel')) return;

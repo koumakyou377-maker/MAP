@@ -126,19 +126,14 @@ function highlightShelves(shelfIds, textQuery) {
     });
 }
 
-// ======= マップ制御・描画 =======
 const COLS = 60, ROWS = 82, CELL_SIZE = 60, BASE_SCALE = 0.2;
 let cellsArray = [], scale = 1, translateX = 0, translateY = 0, isDragging = false, startX, startY;
-
-// ★ マップの有効範囲（施設が配置されている最も外側のライン）を記録する変数
 let mapBounds = { minR: ROWS, maxR: 1, minC: COLS, maxC: 1 };
 
 function renderMap() {
     const grid = document.getElementById('grid');
     const minimapContent = document.getElementById('minimap-content');
     grid.innerHTML = ''; minimapContent.innerHTML = ''; cellsArray = [];
-    
-    // バウンズの初期化
     mapBounds = { minR: ROWS, maxR: 1, minC: COLS, maxC: 1 };
     
     for (let r = 1; r <= ROWS; r++) {
@@ -176,7 +171,6 @@ function applyToGrid(x1, y1, x2, y2, id, asset, minimapContent) {
     const mainCell = cellsArray[startY] ? cellsArray[startY][startX] : null;
     if (!mainCell || mainCell.style.display === 'none') return; 
 
-    // ★ マップの有効範囲（端の棚の座標）を更新
     if (startY < mapBounds.minR) mapBounds.minR = startY;
     if (endY > mapBounds.maxR) mapBounds.maxR = endY;
     if (startX < mapBounds.minC) mapBounds.minC = startX;
@@ -202,8 +196,7 @@ function applyToGrid(x1, y1, x2, y2, id, asset, minimapContent) {
     }
 
     const mmAsset = document.createElement('div');
-    mmAsset.className = 'minimap-asset';
-    mmAsset.id = 'mm-' + id;
+    mmAsset.className = 'minimap-asset'; mmAsset.id = 'mm-' + id;
     mmAsset.style.left = ((startX - 1) / COLS * 100) + '%';
     mmAsset.style.top = ((startY - 1) / ROWS * 100) + '%';
     mmAsset.style.width = ((endX - startX + 1) / COLS * 100) + '%';
@@ -216,8 +209,7 @@ let currentPin = null;
 let goalAssetId = null;
 
 function clearRoute() {
-    currentPin = null;
-    goalAssetId = null;
+    currentPin = null; goalAssetId = null;
     document.querySelectorAll('.route-path').forEach(el => el.classList.remove('route-path'));
     document.querySelectorAll('.pin-start').forEach(el => el.classList.remove('pin-start'));
     document.querySelectorAll('.pin-goal').forEach(el => el.classList.remove('pin-goal'));
@@ -230,32 +222,23 @@ function updateRouteText() {
     const startStr = currentPin ? `<span style="color:#e74c3c">📍現在地: 設定済</span>` : `<span style="color:#e74c3c">📍現在地: 未設定</span>`;
     const goalStr = goalAssetId ? `<span style="color:#2c3e50">🏁目的地: ${goalAssetId}</span>` : `<span style="color:#2c3e50">🏁目的地: 未設定</span>`;
     textEl.innerHTML = `${startStr} <span style="color:#ccc; margin:0 5px;">|</span> ${goalStr}<br><small style="font-weight:normal; color:#7f8c8d;">マップの空きマスと棚をタップしてください</small>`;
-    
     if(currentPin || goalAssetId) document.getElementById('route-panel').classList.add('active');
 }
 
-// ★ 歩行可能マスの判定に、マップの有効範囲（端の棚のライン）の制限を追加
 function getWalkableNeighbors(r, c) {
-    const neighbors = [];
-    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const neighbors = [], dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     for (let [dr, dc] of dirs) {
         const nr = r + dr, nc = c + dc;
-        
-        // 施設が置かれている最も外側のエリア内でのみ移動可能
         if (nr >= mapBounds.minR && nr <= mapBounds.maxR && nc >= mapBounds.minC && nc <= mapBounds.maxC) {
             const neighborCell = cellsArray[nr][nc];
-            // 障害物（配置物）でないマスなら通れる
-            if (neighborCell.style.display !== 'none' && !neighborCell.dataset.assetId) {
-                neighbors.push({ r: nr, c: nc });
-            }
+            if (neighborCell.style.display !== 'none' && !neighborCell.dataset.assetId) neighbors.push({ r: nr, c: nc });
         }
     }
     return neighbors;
 }
 
 function isAdjacentToGoal(r, c, targetId) {
-    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-    for (let [dr, dc] of dirs) {
+    for (let [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
         const nr = r + dr, nc = c + dc;
         if (nr >= 1 && nr <= ROWS && nc >= 1 && nc <= COLS) {
             const nCell = cellsArray[nr][nc];
@@ -275,10 +258,8 @@ function calculateAndDrawRoute() {
         const goalCell = document.querySelector(`.cell[data-asset-id="${goalAssetId}"]`);
         if (goalCell) goalCell.classList.add('pin-goal');
     }
-
     if (!currentPin || !goalAssetId) return;
 
-    // 幅優先探索(BFS)で最短ルートを検索
     const queue = [{ r: currentPin.r, c: currentPin.c, path: [] }];
     const visited = new Set();
     visited.add(`${currentPin.r},${currentPin.c}`);
@@ -286,30 +267,86 @@ function calculateAndDrawRoute() {
 
     while (queue.length > 0) {
         const curr = queue.shift();
-        
-        // 目的地に隣接したらゴール
-        if (isAdjacentToGoal(curr.r, curr.c, goalAssetId)) {
-            foundPath = curr.path;
-            break;
-        }
-
-        const neighbors = getWalkableNeighbors(curr.r, curr.c);
-        for (let n of neighbors) {
+        if (isAdjacentToGoal(curr.r, curr.c, goalAssetId)) { foundPath = curr.path; break; }
+        for (let n of getWalkableNeighbors(curr.r, curr.c)) {
             const key = `${n.r},${n.c}`;
             if (!visited.has(key)) {
-                visited.add(key);
-                queue.push({ r: n.r, c: n.c, path: [...curr.path, {r: n.r, c: n.c}] });
+                visited.add(key); queue.push({ r: n.r, c: n.c, path: [...curr.path, {r: n.r, c: n.c}] });
             }
         }
     }
 
-    if (foundPath) {
-        foundPath.forEach(p => { cellsArray[p.r][p.c].classList.add('route-path'); });
+    if (foundPath) foundPath.forEach(p => { cellsArray[p.r][p.c].classList.add('route-path'); });
+    else alert("目的地へのルートが見つかりません。");
+}
+
+// ======= ミニマップの表示・非表示・移動機能 =======
+function toggleMinimap(show) {
+    const mmContainer = document.getElementById('minimap-container');
+    const mmBtnShow = document.getElementById('btn-show-minimap');
+    if (show) {
+        mmContainer.classList.remove('hidden');
+        mmBtnShow.classList.remove('visible');
     } else {
-        alert("目的地へのルートが見つかりません。");
+        mmContainer.classList.add('hidden');
+        mmBtnShow.classList.add('visible');
     }
 }
 
+function setupMinimapDrag() {
+    const mmContainer = document.getElementById('minimap-container');
+    const mmHeader = document.getElementById('minimap-header');
+    let isMmDragging = false;
+    let mmStartX = 0, mmStartY = 0, mmStartLeft = 0, mmStartTop = 0;
+
+    function onDragStart(e) {
+        if (e.target.closest('button')) return; // 最小化ボタンのクリックは許可
+        isMmDragging = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        mmStartX = clientX; mmStartY = clientY;
+        
+        const rect = mmContainer.getBoundingClientRect();
+        mmStartLeft = rect.left; mmStartTop = rect.top;
+        
+        // CSSの right:24px などを解除して、明示的な left/top 座標に切り替える
+        mmContainer.style.right = 'auto';
+        mmContainer.style.bottom = 'auto';
+        mmContainer.style.left = mmStartLeft + 'px';
+        mmContainer.style.top = mmStartTop + 'px';
+    }
+
+    function onDragMove(e) {
+        if (!isMmDragging) return;
+        e.preventDefault(); // スマホのスクロールを防止
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        let newLeft = mmStartLeft + (clientX - mmStartX);
+        let newTop = mmStartTop + (clientY - mmStartY);
+        
+        // 画面外に出ないように制限
+        const maxX = window.innerWidth - mmContainer.offsetWidth;
+        const maxY = window.innerHeight - mmContainer.offsetHeight;
+        newLeft = Math.max(0, Math.min(newLeft, maxX));
+        newTop = Math.max(0, Math.min(newTop, maxY));
+        
+        mmContainer.style.left = newLeft + 'px';
+        mmContainer.style.top = newTop + 'px';
+    }
+
+    function onDragEnd() {
+        isMmDragging = false;
+    }
+
+    mmHeader.addEventListener('mousedown', onDragStart);
+    window.addEventListener('mousemove', onDragMove);
+    window.addEventListener('mouseup', onDragEnd);
+
+    mmHeader.addEventListener('touchstart', onDragStart, { passive: false });
+    window.addEventListener('touchmove', onDragMove, { passive: false });
+    window.addEventListener('touchend', onDragEnd);
+}
 
 // ======= ズーム・ドラッグ・イベントリスナー =======
 function updateTransform() {
@@ -322,6 +359,8 @@ function updateMinimapViewport() {
     const mmContainer = document.getElementById('minimap-container');
     const viewport = document.getElementById('minimap-viewport');
     
+    if (mmContainer.classList.contains('hidden')) return;
+
     const actualMapW = COLS * CELL_SIZE * scale * BASE_SCALE;
     const actualMapH = ROWS * CELL_SIZE * scale * BASE_SCALE;
     const ratioW = container.clientWidth / actualMapW;
@@ -329,7 +368,10 @@ function updateMinimapViewport() {
     const offsetX = -translateX / actualMapW;
     const offsetY = -translateY / actualMapH;
 
-    const mmRect = mmContainer.getBoundingClientRect();
+    // ミニマップ本体（minimap-body）のサイズを基準に計算
+    const mmBody = document.querySelector('.minimap-body');
+    const mmRect = mmBody.getBoundingClientRect();
+    
     let vw = mmRect.width * ratioW, vh = mmRect.height * ratioH;
     let vx = mmRect.width * offsetX, vy = mmRect.height * offsetY;
 
@@ -367,7 +409,7 @@ function setupEventListeners() {
     document.getElementById('search-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchAsset(); });
 
     container.addEventListener('mousedown', (e) => { 
-        if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel')) return; 
+        if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel') || e.target.closest('.btn-show-minimap')) return; 
         isDragging = true; isMapMoved = false;
         startX = e.clientX - translateX; startY = e.clientY - translateY; container.style.cursor = 'grabbing'; 
     });
@@ -380,33 +422,22 @@ function setupEventListeners() {
         isDragging = false; container.style.cursor = 'default'; 
     });
 
-    // ★ マップタップによるピンの設定 ★
     gridEl.addEventListener('click', (e) => {
-        if (isMapMoved) return; // ドラッグ後の離上は無視
+        if (isMapMoved) return; 
         const cell = e.target.closest('.cell');
         if (!cell) return;
 
-        const r = parseInt(cell.dataset.y);
-        const c = parseInt(cell.dataset.x);
+        const r = parseInt(cell.dataset.y), c = parseInt(cell.dataset.x);
+        if (r < mapBounds.minR || r > mapBounds.maxR || c < mapBounds.minC || c > mapBounds.maxC) return;
 
-        // ★ タップした場所が店舗の範囲外（端の棚より外側）の場合は何も反応しない
-        if (r < mapBounds.minR || r > mapBounds.maxR || c < mapBounds.minC || c > mapBounds.maxC) {
-            return;
-        }
-
-        if (cell.dataset.assetId) {
-            // 施設をタップ -> 目的地
-            goalAssetId = cell.dataset.assetId;
-        } else {
-            // 何もない通路をタップ -> 現在地
-            currentPin = { r: r, c: c };
-        }
-        updateRouteText();
-        calculateAndDrawRoute();
+        if (cell.dataset.assetId) goalAssetId = cell.dataset.assetId;
+        else currentPin = { r: r, c: c };
+        
+        updateRouteText(); calculateAndDrawRoute();
     });
 
     container.addEventListener('wheel', (e) => {
-        if(e.target.closest('#minimap-container') || e.target.closest('.route-panel')) return;
+        if(e.target.closest('#minimap-container') || e.target.closest('.route-panel') || e.target.closest('.sidebar')) return;
         e.preventDefault();
         const newScale = Math.max(0.1, Math.min(scale * Math.exp((e.deltaY < 0 ? 1 : -1) * 0.1), 10));
         const rect = container.getBoundingClientRect();
@@ -416,32 +447,38 @@ function setupEventListeners() {
         scale = newScale; updateTransform();
     }, { passive: false });
 
-    // ミニマップ操作
-    const minimap = document.getElementById('minimap-container');
-    let isMinimapDragging = false;
+    // ミニマップ内のクリック/ドラッグでマップ本体を移動する処理
+    const minimapBody = document.querySelector('.minimap-body');
+    let isMinimapNavigating = false;
     function moveMapViaMinimap(e) {
-        const rect = minimap.getBoundingClientRect();
-        const xRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        const yRatio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+        const rect = minimapBody.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const xRatio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const yRatio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
         const actualMapW = COLS * CELL_SIZE * scale * BASE_SCALE;
         const actualMapH = ROWS * CELL_SIZE * scale * BASE_SCALE;
         translateX = container.clientWidth / 2 - actualMapW * xRatio;
         translateY = container.clientHeight / 2 - actualMapH * yRatio;
         updateTransform();
     }
-    minimap.addEventListener('mousedown', (e) => { isMinimapDragging = true; moveMapViaMinimap(e); });
-    window.addEventListener('mousemove', (e) => { if(isMinimapDragging) moveMapViaMinimap(e); });
-    window.addEventListener('mouseup', () => { isMinimapDragging = false; });
+    minimapBody.addEventListener('mousedown', (e) => { isMinimapNavigating = true; moveMapViaMinimap(e); });
+    window.addEventListener('mousemove', (e) => { if(isMinimapNavigating) moveMapViaMinimap(e); });
+    window.addEventListener('mouseup', () => { isMinimapNavigating = false; });
+
+    minimapBody.addEventListener('touchstart', (e) => { isMinimapNavigating = true; moveMapViaMinimap(e); }, { passive: false });
+    window.addEventListener('touchmove', (e) => { if(isMinimapNavigating) moveMapViaMinimap(e); }, { passive: false });
+    window.addEventListener('touchend', () => { isMinimapNavigating = false; });
 
     // タッチ操作
     let initialDist = 0, initScale = 1, isPinching = false, lastX = 0, lastY = 0;
     container.addEventListener('touchstart', (e) => {
-        if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel')) return;
+        if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel') || e.target.closest('.btn-show-minimap')) return;
         if (e.touches.length === 1) { isDragging = true; isMapMoved = false; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
         else if (e.touches.length === 2) { isPinching = true; isDragging = false; initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); initScale = scale; }
     }, { passive: false });
     container.addEventListener('touchmove', (e) => {
-        if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel')) return;
+        if(e.target.closest('#minimap-container') || e.target.closest('.controls') || e.target.closest('.route-panel') || e.target.closest('.btn-show-minimap')) return;
         e.preventDefault(); 
         if (isPinching && e.touches.length === 2) {
             const currDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -467,7 +504,21 @@ function setupEventListeners() {
 window.addEventListener('DOMContentLoaded', () => {
     switchLang('ja'); 
     setupEventListeners();
+    setupMinimapDrag(); // ミニマップのドラッグ処理を初期化
     renderMap();
     fitToScreen();
-    window.addEventListener('resize', () => updateMinimapViewport());
+    
+    window.addEventListener('resize', () => {
+        updateMinimapViewport();
+        // 画面リサイズ時にミニマップが画面外に取り残されないようにする
+        const mmContainer = document.getElementById('minimap-container');
+        if (mmContainer.style.left) {
+            const maxX = window.innerWidth - mmContainer.offsetWidth;
+            const maxY = window.innerHeight - mmContainer.offsetHeight;
+            let currentLeft = parseInt(mmContainer.style.left);
+            let currentTop = parseInt(mmContainer.style.top);
+            if (currentLeft > maxX) mmContainer.style.left = maxX + 'px';
+            if (currentTop > maxY) mmContainer.style.top = maxY + 'px';
+        }
+    });
 });
